@@ -276,16 +276,43 @@
       }
     }
 
-    var config = formConfigs[docType] || [];
     var html = '';
-    for (var j = 0; j < config.length; j++) {
-      var field = config[j];
-      if (field.type === 'textarea') {
-        html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><textarea id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></textarea></div>';
-      } else {
-        html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><input type="text" id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></div>';
+
+    // Special handling for property type - custom detailed fields
+    if (docType === 'property') {
+      html = '<div class="form-group"><label>甲方（夫/妻）姓名</label><input type="text" id="partyA" placeholder="请输入甲方姓名"></div>' +
+             '<div class="form-group"><label>乙方（妻/夫）姓名</label><input type="text" id="partyB" placeholder="请输入乙方姓名"></div>' +
+             '<div class="form-group"><label>甲方身份证号</label><input type="text" id="idA" placeholder="请输入甲方身份证号"></div>' +
+             '<div class="form-group"><label>乙方身份证号</label><input type="text" id="idB" placeholder="请输入乙方身份证号"></div>' +
+             '<div class="form-group" style="background:#f8f9fa;padding:16px;border-radius:10px;margin-bottom:16px;"><div style="font-weight:700;color:#1a3a5c;margin-bottom:14px;">📋 财产清单</div>' +
+             '<div class="form-group"><label>房产地址</label><input type="text" id="cf-p1-addr" placeholder="如：北京市朝阳区xxx路xx号xx室"></div>' +
+             '<div class="form-group"><label>房产估值（元）</label><input type="text" id="cf-p1-val" placeholder="如：5000000"></div>' +
+             '<div class="form-group"><label>车辆信息</label><input type="text" id="cf-p2-car" placeholder="如：京A12345 宝马525Li"></div>' +
+             '<div class="form-group"><label>车辆估值（元）</label><input type="text" id="cf-p2-val" placeholder="如：300000"></div>' +
+             '<div class="form-group"><label>存款/理财金额（元）</label><input type="text" id="cf-p3-cash" placeholder="如：800000"></div>' +
+             '<div class="form-group"><label>开户银行</label><input type="text" id="cf-p3-bank" placeholder="如：中国工商银行"></div>' +
+             '<div class="form-group"><label>股票/基金市值（元）</label><input type="text" id="cf-p4-stock" placeholder="如：200000"></div>' +
+             '<div class="form-group"><label>证券公司</label><input type="text" id="cf-p4-broker" placeholder="如：中信证券"></div>' +
+             '<div class="form-group"><label>其他财产</label><textarea id="cf-p5-other" placeholder="描述其他财产及估值，如：家具家电、首饰等"></textarea></div></div>' +
+             '<div class="form-group" style="background:#f8f9fa;padding:16px;border-radius:10px;margin-bottom:16px;"><div style="font-weight:700;color:#1a3a5c;margin-bottom:14px;">📋 分割方案</div>' +
+             '<div class="form-group"><label>选择分割方式</label><select id="cf-split-type" onchange="toggleSplitFields()"><option value="ratio">方式一：按比例分割</option><option value="custom">方式二：个性化分割</option></select></div>' +
+             '<div id="cf-split-ratio"><div class="form-group"><label>甲方分配比例（%）</label><input type="text" id="cf-ratio-a" placeholder="如：50"></div>' +
+             '<div class="form-group"><label>乙方分配比例（%）</label><input type="text" id="cf-ratio-b" placeholder="如：50"></div></div>' +
+             '<div id="cf-split-custom" style="display:none;"><div class="form-group"><label>各项财产分割方案</label><textarea id="cf-custom-plan" placeholder="请详细说明每项财产的归属：如：房产归甲方，车辆归乙方，存款均分，股票归乙方..."></textarea></div></div></div>' +
+             '<div class="form-group"><label>其他约定</label><textarea id="other" placeholder="如有其他约定请填写"></textarea></div>' +
+             '<div class="form-group"><label>协议日期</label><input type="text" id="date" placeholder="如：2024年1月1日"></div>';
+    } else {
+      var config = formConfigs[docType] || [];
+      for (var j = 0; j < config.length; j++) {
+        var field = config[j];
+        if (field.type === 'textarea') {
+          html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><textarea id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></textarea></div>';
+        } else {
+          html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><input type="text" id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></div>';
+        }
       }
     }
+
     dynamicForm.innerHTML = html;
 
     outputSection.classList.remove('show');
@@ -300,6 +327,36 @@
         showForm(this.getAttribute('data-type'));
       };
     })(ci));
+  }
+
+  // ── Response Cleanup ───────────────────────────────────────────
+  function cleanAIResponse(text) {
+    if (!text) return '';
+    var patterns = [
+      /^(根据|依据|按照|根据您的|依据您的|按照您的)[^\n]{0,50}[，,\n]/,
+      /^(首先|其次|再次|最后|第一步|第二步|第三步)[，,\s]/,
+      /^(我来|我将|我先|我为您|下面|以下)[^\n]{0,30}[，,\n]/,
+      /^(分析|思考|考虑到|经过|通过)[^\n]{0,30}[，,\n]/,
+      /^\s*【[^\]]*?(?:思考|分析|推理| reasoning)[^\]]*?\]\s*/,
+      /^\s*<!--[\s\S]*?-->\s*/
+    ];
+    patterns.forEach(function(p){ text = text.replace(p, ''); });
+    text = text.replace(/^[\s\n]+/, '').replace(/[\s\n]+$/, '');
+    return text;
+  }
+
+  function toggleSplitFields() {
+    var sel = document.getElementById('cf-split-type');
+    if (!sel) return;
+    var ratioDiv = document.getElementById('cf-split-ratio');
+    var customDiv = document.getElementById('cf-split-custom');
+    if (sel.value === 'ratio') {
+      if (ratioDiv) ratioDiv.style.display = 'block';
+      if (customDiv) customDiv.style.display = 'none';
+    } else {
+      if (ratioDiv) ratioDiv.style.display = 'none';
+      if (customDiv) customDiv.style.display = 'block';
+    }
   }
 
   // ── MiniMax AI Generation ─────────────────────────────────────
@@ -355,7 +412,10 @@
     }
 
     var data = await response.json();
-    return data.choices[0].message.content.trim();
+    var raw = data.choices[0].message.content || data.choices[0].message.text || '';
+    var reasoning = data.choices[0].message.reasoning || '';
+    var result = raw.trim();
+    return cleanAIResponse(result);
   }
 
   // ── Replace the generate button handler ──────────────────────────
@@ -394,10 +454,32 @@
     }
 
     var custom = {};
+    // Standard fields
     var config = formConfigs[ct] || [];
     for (var ci = 0; ci < config.length; ci++) {
       var el = document.getElementById(config[ci].id);
       if (el && el.value) custom[config[ci].label] = el.value;
+    }
+    // Property division custom fields
+    if (ct === 'property') {
+      var p1a = document.getElementById('cf-p1-addr'); var p1v = document.getElementById('cf-p1-val');
+      var p2c = document.getElementById('cf-p2-car'); var p2v = document.getElementById('cf-p2-val');
+      var p3ca = document.getElementById('cf-p3-cash'); var p3b = document.getElementById('cf-p3-bank');
+      var p4s = document.getElementById('cf-p4-stock'); var p4br = document.getElementById('cf-p4-broker');
+      var p5o = document.getElementById('cf-p5-other');
+      var st = document.getElementById('cf-split-type');
+      var rA = document.getElementById('cf-ratio-a'); var rB = document.getElementById('cf-ratio-b');
+      var csp = document.getElementById('cf-custom-plan');
+      if (p1a && p1v && p1a.value) custom['房产'] = '地址：' + p1a.value + '，估值：' + (p1v.value||'未填写') + '元';
+      if (p2c && p2v && p2c.value) custom['车辆'] = '信息：' + p2c.value + '，估值：' + (p2v.value||'未填写') + '元';
+      if (p3ca && p3b && p3ca.value) custom['存款/理财'] = '金额：' + p3ca.value + '元，银行：' + (p3b.value||'未填写');
+      if (p4s && p4br && p4s.value) custom['股票/基金'] = '市值：' + p4s.value + '元，证券公司：' + (p4br.value||'未填写');
+      if (p5o && p5o.value) custom['其他财产'] = p5o.value;
+      if (st && st.value === 'ratio' && rA && rB) {
+        custom['分割方式'] = '按比例分割：甲方' + (rA.value||'0') + '%，乙方' + (rB.value||'0') + '%';
+      } else if (st && st.value === 'custom' && csp && csp.value) {
+        custom['分割方式'] = '个性化分割：' + csp.value;
+      }
     }
 
     // Show loading
