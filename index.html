@@ -356,16 +356,33 @@
   // ── Response Cleanup ───────────────────────────────────────────
   function cleanAIResponse(text) {
     if (!text) return '';
-    var patterns = [
-      /^(根据|依据|按照|根据您的|依据您的|按照您的)[^\n]{0,50}[，,\n]/,
-      /^(首先|其次|再次|最后|第一步|第二步|第三步)[，,\s]/,
-      /^(我来|我将|我先|我为您|下面|以下)[^\n]{0,30}[，,\n]/,
-      /^(分析|思考|考虑到|经过|通过)[^\n]{0,30}[，,\n]/,
-      /^\s*【[^\]]*?(?:思考|分析|推理| reasoning)[^\]]*?\]\s*/,
-      /^\s*<!--[\s\S]*?-->\s*/
-    ];
-    patterns.forEach(function(p){ text = text.replace(p, ''); });
-    text = text.replace(/^[\s\n]+/, '').replace(/[\s\n]+$/, '');
+    // Remove all reasoning/thinking traces
+    text = text
+      // Remove XML-like think tags
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+      .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+      // Remove markdown think blocks
+      .replace(/```think[\s\S]*?```/gi, '')
+      .replace(/```思考[\s\S]*?```/gi, '')
+      // Remove inline reasoning markers
+      .replace(/^【.*?(?:思考|分析|推理|reasoning|reason|分析过程).*?】\s*/gim, '')
+      .replace(/^\s*\[.*?(?:思考|分析|推理).*?\]\s*/gim, '')
+      // Remove sentence-start reasoning patterns
+      .replace(/^(根据|依据|按照|根据您的|依据您的|按照您的|考虑到|经过|通过|综合|分析如下|推理如下)[^，,\n]{0,80}[，,\n]/gm, '')
+      .replace(/^(首先|其次|再次|最后|第一步|第二步|第三步|第四步)[，,\s]/g, '')
+      .replace(/^(我来|我将|我先|我为您|下面|以下|综上所述|总之|简而言之)[^。\n]{0,60}[。\n]/g, '')
+      .replace(/^(根据以上|依据上述|综合上述)[^。\n]{0,60}[。\n]/g, '')
+      // Remove parenthetical reasoning
+      .replace(/\([^)]*(?:思考|分析|推理|reasoning|reason)[^)]*\)/g, '')
+      // Remove bullet point reasoning
+      .replace(/^\s*[•·\-–*]\s*(?:经|通|通[过過]|通盘|综合|分析)[^。\n]{0,60}[。\n]/gm, '')
+      // Remove numbers followed by reasoning
+      .replace(/^\d+[.、][\s]*(?:经|通|综合|分析)[^。\n]{0,60}[。\n]/gm, '')
+      // Clean up multiple blank lines
+      .replace(/\n{4,}/g, '\n\n\n')
+      // Final trim
+      .trim();
     return text;
   }
 
@@ -436,10 +453,21 @@
     }
 
     var data = await response.json();
-    var raw = data.choices[0].message.content || data.choices[0].message.text || '';
-    var reasoning = data.choices[0].message.reasoning || '';
-    var result = raw.trim();
-    return cleanAIResponse(result);
+    var rawContent = data.choices[0].message.content || data.choices[0].message.text || '';
+    // MiniMax may return reasoning separately - discard it from document
+    var reasoningContent = '';
+    try { reasoningContent = data.choices[0].message.reasoning || ''; } catch(e) {}
+
+    var result = (rawContent || '').trim();
+    // Apply cleanup
+    result = cleanAIResponse(result);
+
+    // If result is empty after cleanup, return raw
+    if (!result || result.length < 20) {
+      result = rawContent.trim();
+      result = cleanAIResponse(result);
+    }
+    return result;
   }
 
   // ── Replace the generate button handler ──────────────────────────
@@ -512,6 +540,7 @@
 
     try {
       var doc = await generateWithAI(ct, partyA, partyB, custom);
+      if (doc) doc = cleanAIResponse(doc); // double-clean at display time
       docOutput.textContent = doc;
       outputSection.style.display = 'block';
       outputSection.classList.add('show');
