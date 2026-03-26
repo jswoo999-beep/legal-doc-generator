@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚖️ 法律文书生成器 · AI辅助</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+
+  header { background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%); color: #fff; padding: 28px 20px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+  header h1 { font-size: 1.8em; font-weight: 700; letter-spacing: 2px; }
+  header p { margin-top: 6px; opacity: 0.85; font-size: 0.95em; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+  /* doc type grid */
+  .doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .doc-card {
+    background: #fff; border-radius: 12px; padding: 22px 18px; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s;
+    border: 2px solid transparent; text-align: center;
+  }
+  .doc-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.13); border-color: #2c5282; }
+  .doc-card.selected { border-color: #2c5282; background: #eef4ff; }
+  .doc-card .icon { font-size: 2.4em; margin-bottom: 10px; }
+  .doc-card .title { font-size: 1.05em; font-weight: 600; color: #1a3a5c; }
+  .doc-card .desc { font-size: 0.82em; color: #888; margin-top: 4px; }
+
+  /* sections */
+  .section { background: #fff; border-radius: 12px; padding: 24px 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  /* form section - hidden by default, shown with .show */
+  #form-section { display: none; }
+  #form-section.show { display: block !important; }
+
+  .form-title { font-size: 1.15em; font-weight: 700; color: #1a3a5c; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; color: #444; }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 9px 12px; border: 1.5px solid #d0d7e0; border-radius: 8px;
+    font-size: 0.95em; font-family: inherit; transition: border-color 0.2s; background: #fafafa;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+    outline: none; border-color: #2c5282; background: #fff;
+  }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .btn {
+    padding: 10px 22px; border: none; border-radius: 8px; font-size: 0.95em; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s, transform 0.15s; font-family: inherit;
+  }
+  .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-primary { background: #2c5282; color: #fff; }
+  .btn-secondary { background: #e2e8f0; color: #333; }
+  .btn-copy { background: #38a169; color: #fff; }
+
+  /* output */
+  #output-section { display: none; }
+  #output-section.show { display: block !important; }
+  .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .output-title { font-size: 1.05em; font-weight: 700; color: #1a3a5c; }
+  #doc-output {
+    background: #fafafa; border: 1.5px solid #d0d7e0; border-radius: 8px;
+    padding: 18px 16px; font-size: 0.92em; line-height: 1.8; white-space: pre-wrap;
+    max-height: 600px; overflow-y: auto; color: #222;
+  }
+
+  footer { text-align: center; padding: 16px; color: #aaa; font-size: 0.8em; }
+
+  @media (max-width: 600px) {
+    header h1 { font-size: 1.4em; }
+    .doc-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚖️ 法律文书生成器 · AI辅助</h1>
+  <p>选择文书类型，填写关键信息，快速生成规范法律文本</p>
+</header>
+
+<div class="container">
+
+  <!-- Step 1: 选择文书类型 -->
+  <div class="section">
+    <div class="form-title">📋 步骤一：选择文书类型</div>
+    <div class="doc-grid" id="docGrid">
+      <div class="doc-card" data-type="divorce">
+        <div class="icon">💔</div>
+        <div class="title">离婚协议</div>
+        <div class="desc">夫妻双方自愿离婚</div>
+      </div>
+      <div class="doc-card" data-type="property">
+        <div class="icon">🏠</div>
+        <div class="title">婚内财产分割</div>
+        <div class="desc">婚姻关系存续期间财产分配</div>
+      </div>
+      <div class="doc-card" data-type="lawsuit">
+        <div class="icon">⚖️</div>
+        <div class="title">民事起诉状</div>
+        <div class="desc">向人民法院提起民事诉讼</div>
+      </div>
+      <div class="doc-card" data-type="defense">
+        <div class="icon">🛡️</div>
+        <div class="title">答辩状</div>
+        <div class="desc">针对起诉进行书面答辩</div>
+      </div>
+      <div class="doc-card" data-type="labor">
+        <div class="icon">📄</div>
+        <div class="title">劳动合同</div>
+        <div class="desc">用人单位与劳动者签订</div>
+      </div>
+      <div class="doc-card" data-type="rental">
+        <div class="icon">🏢</div>
+        <div class="title">房屋租赁合同</div>
+        <div class="desc">房屋出租人与承租人签订</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: 填写信息 -->
+  <div class="section" id="form-section">
+    <div class="form-title">✏️ 步骤二：填写信息</div>
+    <div id="dynamic-form"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="generateBtn">🔮 生成文书</button>
+      <button class="btn btn-secondary" id="resetBtn">🔄 重新选择</button>
+    </div>
+  </div>
+
+  <!-- Step 3: 生成结果 -->
+  <div class="section" id="output-section">
+    <div class="output-header">
+      <div class="output-title">📝 生成的文书</div>
+      <button class="btn btn-copy" id="copyBtn">📋 复制文本</button>
+    </div>
+    <div id="doc-output"></div>
+  </div>
+
+</div>
+
+<footer>法律文书生成器 · AI辅助 · 仅供参考，不构成法律意见</footer>
+
+<script>
+(function() {
+  'use strict';
+
+  var selectedType = null;
+
+  var formConfigs = {
+    divorce: [
+      { id: 'husband', label: '男方姓名', type: 'input' },
+      { id: 'wife', label: '女方姓名', type: 'input' },
+      { id: 'id Husband', label: '男方身份证号', type: 'input' },
+      { id: 'id Wife', label: '女方身份证号', type: 'input' },
+      { id: 'childInfo', label: '子女安排（姓名、年龄、抚养权）', type: 'textarea' },
+      { id: 'propertyInfo', label: '财产分割方案', type: 'textarea' },
+      { id: 'debtInfo', label: '债务分担方案', type: 'textarea' },
+      { id: 'other', label: '其他约定', type: 'textarea' },
+      { id: 'date', label: '协议日期', type: 'input' }
+    ],
+    property: [
+      { id: 'partyA', label: '甲方（夫/妻）姓名', type: 'input' },
+      { id: 'partyB', label: '乙方（妻/夫）姓名', type: 'input' },
+      { id: 'idA', label: '甲方身份证号', type: 'input' },
+      { id: 'idB', label: '乙方身份证号', type: 'input' },
+      { id: 'propertyDesc', label: '财产描述（房产、存款、车辆等）', type: 'textarea' },
+      { id: 'splitMethod', label: '分割方式', type: 'textarea' },
+      { id: 'other', label: '其他约定', type: 'textarea' },
+      { id: 'date', label: '协议日期', type: 'input' }
+    ],
+    lawsuit: [
+      { id: 'plaintiff', label: '原告姓名', type: 'input' },
+      { id: 'defendant', label: '被告姓名', type: 'input' },
+      { id: 'idP', label: '原告身份证号', type: 'input' },
+      { id: 'idD', label: '被告身份证号', type: 'input' },
+      { id: 'addressP', label: '原告地址', type: 'input' },
+      { id: 'addressD', label: '被告地址', type: 'input' },
+      { id: 'phoneP', label: '原告电话', type: 'input' },
+      { id: 'caseType', label: '案由', type: 'input' },
+      { id: 'factDesc', label: '事实与理由', type: 'textarea' },
+      { id: 'claim', label: '诉讼请求', type: 'textarea' },
+      { id: 'court', label: '管辖法院', type: 'input' },
+      { id: 'date', label: '起诉日期', type: 'input' }
+    ],
+    defense: [
+      { id: 'defendant', label: '被告姓名', type: 'input' },
+      { id: 'idD', label: '被告身份证号', type: 'input' },
+      { id: 'addressD', label: '被告地址', type: 'input' },
+      { id: 'plaintiff', label: '原告姓名', type: 'input' },
+      { id: 'caseNo', label: '案号', type: 'input' },
+      { id: 'court', label: '管辖法院', type: 'input' },
+      { id: 'defenseContent', label: '答辩内容（事实与理由）', type: 'textarea' },
+      { id: 'evidence', label: '证据清单', type: 'textarea' },
+      { id: 'date', label: '答辩日期', type: 'input' }
+    ],
+    labor: [
+      { id: 'employer', label: '用人单位名称', type: 'input' },
+      { id: 'employee', label: '劳动者姓名', type: 'input' },
+      { id: 'idE', label: '劳动者身份证号', type: 'input' },
+      { id: 'addrE', label: '劳动者地址', type: 'input' },
+      { id: 'position', label: '工作岗位', type: 'input' },
+      { id: 'salary', label: '工资标准', type: 'input' },
+      { id: 'startDate', label: '合同起始日期', type: 'input' },
+      { id: 'endDate', label: '合同终止日期', type: 'input' },
+      { id: 'workHours', label: '工作时间', type: 'input' },
+      { id: 'other', label: '其他约定', type: 'textarea' },
+      { id: 'date', label: '签订日期', type: 'input' }
+    ],
+    rental: [
+      { id: 'landlord', label: '出租人姓名', type: 'input' },
+      { id: 'tenant', label: '承租人姓名', type: 'input' },
+      { id: 'idL', label: '出租人身份证号', type: 'input' },
+      { id: 'idT', label: '承租人身份证号', type: 'input' },
+      { id: 'addrL', label: '出租人地址', type: 'input' },
+      { id: 'addrT', label: '承租人地址', type: 'input' },
+      { id: 'propertyAddr', label: '租赁房屋地址', type: 'input' },
+      { id: 'propertyDesc', label: '房屋基本情况', type: 'textarea' },
+      { id: 'rent', label: '租金标准', type: 'input' },
+      { id: 'paymentTerm', label: '付款方式', type: 'input' },
+      { id: 'deposit', label: '押金金额', type: 'input' },
+      { id: 'startDate', label: '租赁起始日期', type: 'input' },
+      { id: 'endDate', label: '租赁终止日期', type: 'input' },
+      { id: 'other', label: '其他约定', type: 'textarea' },
+      { id: 'date', label: '签订日期', type: 'input' }
+    ]
+  };
+
+  var docTemplates = {
+    divorce: function(v) {
+      return '离婚协议书\n\n甲方（男方）：' + v.husband + '\n身份证号：' + v['id Husband'] + '\n\n乙方（女方）：' + v.wife + '\n身份证号：' + v['id Wife'] + '\n\n甲乙双方于____年相识，____年登记结婚，婚后育有子女。因性格不合，夫妻感情确已破裂，现双方自愿协议离婚，达成如下协议：\n\n一、子女安排\n' + v.childInfo + '\n\n二、财产分割\n' + v.propertyInfo + '\n\n三、债务分担\n' + v.debtInfo + '\n\n四、其他约定\n' + v.other + '\n\n五、本协议自婚姻登记机关颁发离婚证之日起生效。\n\n甲方（签名）：__________    乙方（签名）：__________\n日期：' + v.date;
+    },
+    property: function(v) {
+      return '婚内财产分割协议\n\n甲方（夫/妻）：' + v.partyA + '\n身份证号：' + v.idA + '\n\n乙方（妻/夫）：' + v.partyB + '\n身份证号：' + v.idB + '\n\n甲乙双方系夫妻关系，于____年登记结婚。现双方经协商一致，就婚姻关系存续期间的财产分割事宜，达成如下协议：\n\n一、财产描述\n' + v.propertyDesc + '\n\n二、分割方式\n' + v.splitMethod + '\n\n三、其他约定\n' + v.other + '\n\n四、本协议自双方签字之日起生效，对双方具有法律约束力。\n\n甲方（签名）：__________    乙方（签名）：__________\n日期：' + v.date;
+    },
+    lawsuit: function(v) {
+      return '民事起诉状\n\n原告：' + v.plaintiff + '\n身份证号：' + v.idP + '\n地址：' + v.addressP + '\n电话：' + v.phoneP + '\n\n被告：' + v.defendant + '\n身份证号：' + v.idD + '\n地址：' + v.addressD + '\n\n案由：' + v.caseType + '\n\n诉讼请求：\n' + v.claim + '\n\n事实与理由：\n' + v.factDesc + '\n\n此致\n' + v.court + '\n\n起诉人（签名）：__________\n日期：' + v.date + '\n\n附：1. 本诉状副本____份\n2. 证据清单及证据材料';
+    },
+    defense: function(v) {
+      return '答辩状\n\n答辩人（被告）：' + v.defendant + '\n身份证号：' + v.idD + '\n地址：' + v.addressD + '\n\n被答辩人（原告）：' + v.plaintiff + '\n\n案号：' + v.caseNo + '\n管辖法院：' + v.court + '\n\n答辩内容：\n' + v.defenseContent + '\n\n证据清单：\n' + v.evidence + '\n\n答辩人认为，原告的诉讼请求缺乏事实和法律依据，请求法院依法驳回原告的全部诉讼请求。\n\n此致\n' + v.court + '\n\n答辩人（签名）：__________\n日期：' + v.date;
+    },
+    labor: function(v) {
+      return '劳动合同\n\n甲方（用人单位）：' + v.employer + '\n\n乙方（劳动者）：' + v.employee + '\n身份证号：' + v.idE + '\n地址：' + v.addrE + '\n\n根据《中华人民共和国劳动法》及相关法律法规，甲乙双方经平等自愿、协商一致，订立本合同：\n\n一、合同期限\n起止日期：' + v.startDate + ' 至 ' + v.endDate + '\n\n二、工作内容与地点\n工作岗位：' + v.position + '\n工作地点：\n工作时间：' + v.workHours + '\n\n三、劳动报酬\n工资标准：' + v.salary + '（每月）\n支付方式：\n\n四、其他约定\n' + v.other + '\n\n五、甲乙双方应当履行本合同约定的义务，如需变更或解除，应按法定程序进行。\n\n甲方（盖章）：__________    乙方（签名）：__________\n日期：' + v.date;
+    },
+    rental: function(v) {
+      return '房屋租赁合同\n\n出租人（甲方）：' + v.landlord + '\n身份证号：' + v.idL + '\n地址：' + v.addrL + '\n\n承租人（乙方）：' + v.tenant + '\n身份证号：' + v.idT + '\n地址：' + v.addrT + '\n\n甲乙双方经协商一致，就乙方承租甲方房屋事宜，订立本合同：\n\n一、房屋基本情况\n地址：' + v.propertyAddr + '\n详情：' + v.propertyDesc + '\n\n二、租赁期限\n' + v.startDate + ' 至 ' + v.endDate + '\n\n三、租金及付款\n租金：' + v.rent + '（每月）\n付款方式：' + v.paymentTerm + '\n押金：' + v.deposit + '\n\n四、其他约定\n' + v.other + '\n\n五、本合同自双方签字之日起生效。\n\n甲方（签名）：__________    乙方（签名）：__________\n日期：' + v.date;
+    }
+  };
+
+  var docGrid = document.getElementById('docGrid');
+  var formSection = document.getElementById('form-section');
+  var dynamicForm = document.getElementById('dynamic-form');
+  var outputSection = document.getElementById('output-section');
+  var docOutput = document.getElementById('doc-output');
+  var generateBtn = document.getElementById('generateBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var copyBtn = document.getElementById('copyBtn');
+
+  // Card click handler
+  function showForm(docType) {
+    selectedType = docType;
+    var cards = docGrid.querySelectorAll('.doc-card');
+    for (var i = 0; i < cards.length; i++) {
+      cards[i].classList.remove('selected');
+      if (cards[i].getAttribute('data-type') === docType) {
+        cards[i].classList.add('selected');
+      }
+    }
+
+    var config = formConfigs[docType] || [];
+    var html = '';
+    for (var j = 0; j < config.length; j++) {
+      var field = config[j];
+      if (field.type === 'textarea') {
+        html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><textarea id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></textarea></div>';
+      } else {
+        html += '<div class="form-group"><label for="' + field.id + '">' + field.label + '</label><input type="text" id="' + field.id + '" name="' + field.id + '" placeholder="请输入..."></div>';
+      }
+    }
+    dynamicForm.innerHTML = html;
+
+    outputSection.classList.remove('show');
+    formSection.classList.add('show');
+  }
+
+  // Attach card listeners
+  var cards = docGrid.querySelectorAll('.doc-card');
+  for (var ci = 0; ci < cards.length; ci++) {
+    cards[ci].addEventListener('click', (function(idx) {
+      return function() {
+        showForm(this.getAttribute('data-type'));
+      };
+    })(ci));
+  }
+
+  // Generate
+  generateBtn.addEventListener('click', function() {
+    if (!selectedType) return;
+    var v = {};
+    var config = formConfigs[selectedType];
+    for (var k = 0; k < config.length; k++) {
+      var el = document.getElementById(config[k].id);
+      if (el) v[config[k].id] = el.value;
+    }
+    var template = docTemplates[selectedType];
+    if (template) {
+      docOutput.textContent = template(v);
+      outputSection.classList.add('show');
+      outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  // Copy
+  copyBtn.addEventListener('click', function() {
+    var text = docOutput.textContent;
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        var orig = copyBtn.textContent;
+        copyBtn.textContent = '✅ 已复制';
+        setTimeout(function() { copyBtn.textContent = orig; }, 1500);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      var orig = copyBtn.textContent;
+      copyBtn.textContent = '✅ 已复制';
+      setTimeout(function() { copyBtn.textContent = orig; }, 1500);
+    }
+  });
+
+  // Reset
+  resetBtn.addEventListener('click', function() {
+    selectedType = null;
+    var allCards = docGrid.querySelectorAll('.doc-card');
+    for (var ri = 0; ri < allCards.length; ri++) {
+      allCards[ri].classList.remove('selected');
+    }
+    formSection.classList.remove('show');
+    outputSection.classList.remove('show');
+    dynamicForm.innerHTML = '';
+  });
+
+})();
+</script>
+</body>
+</html>
