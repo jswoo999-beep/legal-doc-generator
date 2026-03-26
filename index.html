@@ -301,6 +301,30 @@
              '<div id="cf-split-custom" style="display:none;"><div class="form-group"><label>各项财产分割方案</label><textarea id="cf-custom-plan" placeholder="请详细说明每项财产的归属：如：房产归甲方，车辆归乙方，存款均分，股票归乙方..."></textarea></div></div></div>' +
              '<div class="form-group"><label>其他约定</label><textarea id="other" placeholder="如有其他约定请填写"></textarea></div>' +
              '<div class="form-group"><label>协议日期</label><input type="text" id="date" placeholder="如：2024年1月1日"></div>';
+    } else if (docType === 'divorce') {
+      html = '<div class="form-group"><label>男方姓名</label><input type="text" id="husband" placeholder="请输入男方姓名"></div>' +
+             '<div class="form-group"><label>女方姓名</label><input type="text" id="wife" placeholder="请输入女方姓名"></div>' +
+             '<div class="form-group"><label>男方身份证号</label><input type="text" id="id Husband" placeholder="请输入男方身份证号"></div>' +
+             '<div class="form-group"><label>女方身份证号</label><input type="text" id="id Wife" placeholder="请输入女方身份证号"></div>' +
+             '<div class="form-group"><label>子女安排（姓名、年龄、抚养权）</label><textarea id="childInfo" placeholder="请输入子女安排信息"></textarea></div>' +
+             '<div class="form-group" style="background:#f8f9fa;padding:16px;border-radius:10px;margin-bottom:16px;"><div style="font-weight:700;color:#1a3a5c;margin-bottom:14px;">📋 财产清单（夫妻共同财产）</div>' +
+             '<div class="form-group"><label>房产地址</label><input type="text" id="cf-p1-addr" placeholder="如：北京市朝阳区xxx路xx号xx室"></div>' +
+             '<div class="form-group"><label>房产估值（元）</label><input type="text" id="cf-p1-val" placeholder="如：5000000"></div>' +
+             '<div class="form-group"><label>车辆信息</label><input type="text" id="cf-p2-car" placeholder="如：京A12345 宝马525Li"></div>' +
+             '<div class="form-group"><label>车辆估值（元）</label><input type="text" id="cf-p2-val" placeholder="如：300000"></div>' +
+             '<div class="form-group"><label>存款/理财金额（元）</label><input type="text" id="cf-p3-cash" placeholder="如：800000"></div>' +
+             '<div class="form-group"><label>开户银行</label><input type="text" id="cf-p3-bank" placeholder="如：中国工商银行"></div>' +
+             '<div class="form-group"><label>股票/基金市值（元）</label><input type="text" id="cf-p4-stock" placeholder="如：200000"></div>' +
+             '<div class="form-group"><label>证券公司</label><input type="text" id="cf-p4-broker" placeholder="如：中信证券"></div>' +
+             '<div class="form-group"><label>其他财产</label><textarea id="cf-p5-other" placeholder="描述其他财产及估值，如：家具家电、首饰等"></textarea></div></div>' +
+             '<div class="form-group" style="background:#f8f9fa;padding:16px;border-radius:10px;margin-bottom:16px;"><div style="font-weight:700;color:#1a3a5c;margin-bottom:14px;">📋 财产分割方案</div>' +
+             '<div class="form-group"><label>选择分割方式</label><select id="cf-split-type" onchange="toggleSplitFields()"><option value="ratio">方式一：按比例分割</option><option value="custom">方式二：个性化分割</option></select></div>' +
+             '<div id="cf-split-ratio"><div class="form-group"><label>甲方分配比例（%）</label><input type="text" id="cf-ratio-a" placeholder="如：50"></div>' +
+             '<div class="form-group"><label>乙方分配比例（%）</label><input type="text" id="cf-ratio-b" placeholder="如：50"></div></div>' +
+             '<div id="cf-split-custom" style="display:none;"><div class="form-group"><label>各项财产分割方案</label><textarea id="cf-custom-plan" placeholder="请说明每项财产的归属：如：房产归甲方，车辆归乙方，存款均分..."></textarea></div></div></div>' +
+             '<div class="form-group"><label>债务分担方案</label><textarea id="debtInfo" placeholder="如有债务请填写"></textarea></div>' +
+             '<div class="form-group"><label>其他约定</label><textarea id="other" placeholder="如有其他约定请填写"></textarea></div>' +
+             '<div class="form-group"><label>协议日期</label><input type="text" id="date" placeholder="如：2024年1月1日"></div>';
     } else {
       var config = formConfigs[docType] || [];
       for (var j = 0; j < config.length; j++) {
@@ -460,8 +484,8 @@
       var el = document.getElementById(config[ci].id);
       if (el && el.value) custom[config[ci].label] = el.value;
     }
-    // Property division custom fields
-    if (ct === 'property') {
+    // Property division custom fields (shared by property and divorce)
+    if (ct === 'property' || ct === 'divorce') {
       var p1a = document.getElementById('cf-p1-addr'); var p1v = document.getElementById('cf-p1-val');
       var p2c = document.getElementById('cf-p2-car'); var p2v = document.getElementById('cf-p2-val');
       var p3ca = document.getElementById('cf-p3-cash'); var p3b = document.getElementById('cf-p3-bank');
