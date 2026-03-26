@@ -78,6 +78,11 @@
 </head>
 <body>
 
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;flex-direction:column;gap:12px;">
+  <div style="font-size:2rem;">⚖️</div>
+  <div>AI 正在生成文书，请稍候…</div>
+</div>
+
 <header>
   <h1>⚖️ 法律文书生成器 · AI辅助</h1>
   <p>选择文书类型，填写关键信息，快速生成规范法律文本</p>
@@ -297,20 +302,123 @@
     })(ci));
   }
 
-  // Generate
-  generateBtn.addEventListener('click', function() {
-    if (!selectedType) return;
-    var v = {};
-    var config = formConfigs[selectedType];
-    for (var k = 0; k < config.length; k++) {
-      var el = document.getElementById(config[k].id);
-      if (el) v[config[k].id] = el.value;
+  // ── AI Generation ─────────────────────────────────────────────
+  const API_KEY = 'sk-d0b8eb9c9355486e80eb9cc8ce0e195f';
+  const API_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+  const DOC_SYSTEM_PROMPTS = {
+    divorce: '你是一位专业的中国婚姻法律师。你的任务是根据用户提供的真实信息，生成一份规范、完整、合法的离婚协议书。要用正式的法律语言，包含所有必要的法律条款。注意：协议仅供參考，不构成正式法律意见。',
+    property: '你是一位专业的中国婚姻法律师。你的任务是根据用户提供的真实信息，生成一份规范、完整、合法的婚内财产分割协议。要用正式的法律语言，包含所有必要的法律条款。',
+    lawsuit: '你是一位专业的中国民事诉讼律师。你的任务是根据用户提供的真实信息，生成一份规范、完整的民事起诉状。要用正式的法律语言，符合中国民事诉讼法要求。',
+    defense: '你是一位专业的中国民事诉讼律师。你的任务是根据用户提供的真实信息，生成一份规范、完整的答辩状。要用正式的法律语言，符合中国民事诉讼法要求。',
+    labor: '你是一位专业的中国劳动法律师。你的任务是根据用户提供的真实信息，生成一份规范、完整的劳动合同。要用正式的法律语言，符合中国劳动法和劳动合同法要求。',
+    rental: '你是一位专业的中国民商事律师。你的任务是根据用户提供的真实信息，生成一份规范、完整的房屋租赁合同。要用正式的法律语言，符合中国民法典要求。'
+  };
+
+  const DOC_TYPE_NAMES = {
+    divorce: '离婚协议书',
+    property: '婚内财产分割协议',
+    lawsuit: '民事起诉状',
+    defense: '答辩状',
+    labor: '劳动合同',
+    rental: '房屋租赁合同'
+  };
+
+  function buildPrompt(docType, partyA, partyB, custom) {
+    const typeName = DOC_TYPE_NAMES[docType] || docType;
+    let partyInfo = `甲方信息：${partyA.name || '未填写'}，性别：${partyA.gender || '未填写'}，身份证号：${partyA.id || '未填写'}，电话：${partyA.phone || '未填写'}，地址：${partyA.address || '未填写'}；
+乙方信息：${partyB.name || '未填写'}，性别：${partyB.gender || '未填写'}，身份证号：${partyB.id || '未填写'}，电话：${partyB.phone || '未填写'}，地址：${partyB.address || '未填写'}；`;
+
+    let customInfo = '';
+    Object.keys(custom).forEach(function(key) {
+      if (custom[key]) customInfo += key + ': ' + custom[key] + '；';
+    });
+
+    return '请生成一份《' + typeName + '》。\n\n当事人信息：\n' + partyInfo + '\n' + (customInfo ? '用户填写的其他信息：\n' + customInfo : '') + '\n\n要求：\n1. 使用正式法律语言\n2. 包含所有必要条款\n3. 格式规范，条款编号清晰\n4. 在文书末尾注明"本协议/文书仅供参考使用，不构成正式法律意见，使用前请咨询专业律师"\n5. 只返回文书正文，不要有其他说明';
+  }
+
+  async function generateWithAI(docType, partyA, partyB, custom) {
+    const prompt = buildPrompt(docType, partyA, partyB, custom);
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API_KEY
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: DOC_SYSTEM_PROMPTS[docType] || DOC_SYSTEM_PROMPTS.divorce },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 3000
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error('API错误: ' + response.status + ' ' + err);
     }
-    var template = docTemplates[selectedType];
-    if (template) {
-      docOutput.textContent = template(v);
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  }
+
+  // ── Replace the generate button handler ──────────────────────────
+  // showToast helper used below
+  function showToast(msg) {
+    var div = document.createElement('div');
+    div.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;z-index:99999;font-size:0.95rem;opacity:0;transition:opacity 0.3s';
+    div.textContent = msg;
+    document.body.appendChild(div);
+    requestAnimationFrame(function() { div.style.opacity = '1'; });
+    setTimeout(function() {
+      div.style.opacity = '0';
+      setTimeout(function() { document.body.removeChild(div); }, 300);
+    }, 2500);
+  }
+
+  // Generate — AI-powered
+  generateBtn.addEventListener('click', async function() {
+    if (!selectedType) return;
+    var partyA = {
+      name: document.getElementById('husband') && document.getElementById('husband').value || document.getElementById('partyA') && document.getElementById('partyA').value || document.getElementById('plaintiff') && document.getElementById('plaintiff').value || document.getElementById('defendant') && document.getElementById('defendant').value || document.getElementById('employer') && document.getElementById('employer').value || document.getElementById('landlord') && document.getElementById('landlord').value || '',
+      gender: '',
+      id: document.getElementById('id Husband') && document.getElementById('id Husband').value || document.getElementById('idA') && document.getElementById('idA').value || document.getElementById('idP') && document.getElementById('idP').value || document.getElementById('idD') && document.getElementById('idD').value || document.getElementById('idE') && document.getElementById('idE').value || document.getElementById('idL') && document.getElementById('idL').value || '',
+      phone: '',
+      address: document.getElementById('addressP') && document.getElementById('addressP').value || document.getElementById('addressD') && document.getElementById('addressD').value || document.getElementById('addrE') && document.getElementById('addrE').value || document.getElementById('addrL') && document.getElementById('addrL').value || ''
+    };
+    var partyB = {
+      name: document.getElementById('wife') && document.getElementById('wife').value || document.getElementById('partyB') && document.getElementById('partyB').value || document.getElementById('defendant') && document.getElementById('defendant').value || document.getElementById('plaintiff') && document.getElementById('plaintiff').value || document.getElementById('employee') && document.getElementById('employee').value || document.getElementById('tenant') && document.getElementById('tenant').value || '',
+      gender: '',
+      id: document.getElementById('id Wife') && document.getElementById('id Wife').value || document.getElementById('idB') && document.getElementById('idB').value || document.getElementById('idD') && document.getElementById('idD').value || document.getElementById('idP') && document.getElementById('idP').value || document.getElementById('idE') && document.getElementById('idE').value || document.getElementById('idT') && document.getElementById('idT').value || '',
+      phone: '',
+      address: document.getElementById('addressD') && document.getElementById('addressD').value || document.getElementById('addressP') && document.getElementById('addressP').value || document.getElementById('addrT') && document.getElementById('addrT').value || document.getElementById('addrE') && document.getElementById('addrE').value || ''
+    };
+
+    // Collect all custom fields
+    var custom = {};
+    var config = formConfigs[selectedType] || [];
+    for (var ci = 0; ci < config.length; ci++) {
+      var el = document.getElementById(config[ci].id);
+      if (el && el.value) custom[config[ci].label] = el.value;
+    }
+
+    // Show loading
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.style.display = 'flex';
+
+    try {
+      var doc = await generateWithAI(selectedType, partyA, partyB, custom);
+      docOutput.textContent = doc;
       outputSection.classList.add('show');
       outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast('文书生成成功！');
+    } catch(e) {
+      showToast('生成失败: ' + e.message);
+    } finally {
+      if (overlay) overlay.style.display = 'none';
     }
   });
 
